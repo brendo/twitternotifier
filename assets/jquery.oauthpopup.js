@@ -24,16 +24,19 @@
             }
         }, 1000);
     };
-	
+
+})(jQuery);
+
+
 	jQuery(document).ready(function(){
 		jQuery('#twitter_connect').click(function(){
 			jQuery.oauthpopup({
-				"path": "/extensions/twitter_notifier/content/content.twitter_connect.php",
+				"path": Symphony.Context.get('root')+"/extensions/twitternotifier/content/content.twitter_connect.php",
+				"windowName": "authorize",
+				"windowOptions": "scrollbars=yes",
 				"callback": function(){
 					window.location.reload();
 				}
 			});
 		});
 	});
-
-})(jQuery);

@@ -6,12 +6,6 @@ require_once TOOLKIT . '/class.authormanager.php';
 
 class Extension_TwitterNotifier extends Extension
 {
-	protected $_CONSUMERKEY = '';
-	protected $_CONSUMERSECRET = '';
-	protected $_OAUTHCALLBACK = '';
-	
-	
-	
 	public function about()
 	{
 		return array
@@ -41,8 +35,6 @@ class Extension_TwitterNotifier extends Extension
 			CREATE TABLE IF NOT EXISTS `tbl_authors_twitter_accounts` (
 				`id` int(10) unsigned NOT NULL auto_increment,
 				`account` varchar(100) NOT NULL,
-				`oauth_provider` varchar(10),
-				`oauth_uid` text,
 				`oauth_token` text,
 				`oauth_secret` text,
 				`sections` int(10) unsigned NOT NULL,
@@ -68,11 +60,27 @@ class Extension_TwitterNotifier extends Extension
 				'page' 		=> '/backend/',
 				'delegate'	=> 'InitaliseAdminPageHead',
 				'callback'	=> 'initialiseAdminPageHead'
+			),
+			array(
+				'page'		=> '/system/preferences/',
+				'delegate' 	=> 'AddCustomPreferenceFieldsets',
+				'callback' 	=> 'appendToPreferences'
+			),
+			array(
+				'page' => '/system/preferences/',
+				'delegate' => 'Save',
+				'callback' => 'savePreferences'
+			),
+			array(
+				'page' => '/system/preferences/success/',
+				'delegate' => 'Save',
+				'callback' => 'savePreferences'
 			)
 		);
 	}
 
-	public function fetchNavigation(){
+	public function fetchNavigation()
+	{
 		return array(
 			array(
 				'location' => 'System',
@@ -81,28 +89,94 @@ class Extension_TwitterNotifier extends Extension
 				)
 		);
 	}
-	
+
 	public function initialiseAdminPageHead($context)
 	{
-			//var_dump($context);die;
 			$page = $context['parent']->Page;
 			if($page instanceof contentExtensionTwitterNotifierAccounts){
-				$page->addScriptToHead(URL . '/extensions/twitternotifier/assets/jquery.oathpopup.js', null, false);
+				$page->addScriptToHead(URL . '/extensions/twitternotifier/assets/jquery.oauthpopup.js', null, false);
 			}
 	}
-	
-	public function get($method)
+
+	public function getConsumerKey()
 	{
-		if($method == 'consumer_key') return $this->_CONSUMERKEY;
-		if($method == 'consumer_secret') return $this->_CONSUMERSECRET;
-		if($method == 'oauth_callback') return $this->_OAUTHCALLBACK;
+		return Symphony::Configuration()->get('consumer-key', 'twitter-notifier');
+	}
+
+	public function getConsumerSecret()
+	{
+		return Symphony::Configuration()->get('consumer-secret', 'twitter-notifier');
+	}
+
+	private function _checkConsumerDetails()
+	{
+		if(Symphony::Configuration()->get('consumer-secret', 'twitter-notifier') && Symphony::Configuration()->get('consumer-key', 'twitter-notifier'))
+		{
+			return true;
+		}
 		return false;
 	}
-	
+
+	public function savePreferences($context)
+	{
+		if(empty($context['settings']['twitter-notifier']['consumer-key']) || empty($context['settings']['twitter-notifier']['consumer-secret']))
+		{
+			if($this->_checkConsumerDetails() == true && $context['settings']['twitter-notifier']['remove-details'] == 'yes')
+			{
+				$context['settings']['twitter-notifier']['consumer-key'] = $this->getConsumerKey();
+				$context['settings']['twitter-notifier']['consumer-secret'] = $this->getConsumerSecret();
+			}
+		}
+	}
+
+	public function appendToPreferences($context)
+	{
+		$fieldset = new XMLElement('fieldset');
+		$fieldset->setAttribute('class', 'settings');
+		$fieldset->appendChild(new XMLElement('legend', 'Twitter Notifier'));
+
+		$status = new XMLElement('div');
+
+		if($this->_checkConsumerDetails() == true)
+		{
+			$status->appendChild(new XMLElement('p', 'Your Consumer details are saved in the preferences, to change them, please re-enter them here.'));
+		}
+		else
+		{
+			// Add info
+			$fieldset->appendChild(new XMLElement('p','An <a href="http://dev.twitter.com/login" title="Login at Twitter Developers site">application will need registering</a> with a Twitter account to get the details required here.'));
+			$status->setAttribute('class', 'invalid');
+			$p = new XMLElement('p', 'Your Consumer details are not saved in the preferences enter them to save.');
+			$p->setAttribute('style', 'padding-top:0.75em');
+			$status->appendChild($p);
+		}
+		$fieldset->appendChild($status);
+
+		$div = new XMLElement('div');
+		$div->setAttribute('class','group');
+
+		// Add Consumer Key field
+		$label = Widget::Label('Consumer Key');
+		$label->appendChild(Widget::Input('settings[twitter-notifier][consumer-key]', null, 'password'));
+		$div->appendChild($label);
+		// Add Consumer Secret field
+		$label = Widget::Label('Consumer Secret');
+		$label->appendChild(Widget::Input('settings[twitter-notifier][consumer-secret]', null, 'password'));
+		$div->appendChild($label);
+		$fieldset->appendChild($div);
+		// Add sub help
+		$fieldset->appendChild(new XMLElement('p','Your Consumer details are required to allow Author accounts access to notify Twitter.', array('class' => 'help')));
+
+		// Need to build the checkbox for removing settings.
+
+		$context['wrapper']->appendChild($fieldset);
+	}
+
+
 	/**
 	 * Sends Twitter Notification
 	 * NOT COMPLETED YET!!
-	 * 
+	 *
 	 */
 	public function sendTwitterNotification($context)
 	{
@@ -128,18 +202,18 @@ class Extension_TwitterNotifier extends Extension
 
 
 				/* $url_to_shorten = str_replace('{entry_id}', $identifier, $account['url']);
-				
+
 				// Shorten the URL to the new entry:
-				
+
 				$ch = curl_init("http://is.gd/api.php?longurl={$url_to_shorten}");
-				
+
 				curl_setopt($ch, CURLOPT_POST, true);
 				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 				curl_setopt($ch, CURLOPT_VERBOSE, true);
 				curl_setopt($ch, CURLOPT_NOBODY, false);
 				curl_setopt($ch, CURLOPT_HEADER, false);
 				curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-				
+
 				$link_to_entry = curl_exec($ch);
 				curl_close($ch);
 				*/
@@ -147,16 +221,16 @@ class Extension_TwitterNotifier extends Extension
 				$url_to_shorten = str_replace('{entry_id}', $identifier, $account['url']);
 
 				// We use our own URL-Shortener
-				
-				// settings for byspd.de 
-				
+
+				// settings for byspd.de
+
 					$byspd_user = 'bayernspd';
 					$byspd_pass = 'CXek&94(L';
 				// 	$keyword = $_REQUEST['key'];		// optional keyword
 					$format = 'simple';			// output format: 'json', 'xml' or 'simple'
 					$api_url = "http://byspd.de/yourls-api.php";
-				
-				
+
+
 				// Init the CURL session
 					$ch = curl_init();
 					curl_setopt($ch, CURLOPT_URL, $api_url);
@@ -172,8 +246,8 @@ class Extension_TwitterNotifier extends Extension
 						'username' => $byspd_user,
 						'password' => $byspd_pass
 					));
-				
-				
+
+
 				/*
 				// Shorten the URL to the new entry:
 				$ch = curl_init("http://is.gd/api.php?longurl={$url_to_shorten}");
@@ -239,7 +313,7 @@ class Extension_TwitterNotifier extends Extension
 
 		$xml = new DOMDocument();
 		$xml->loadXML($entry->generate(true));
-		
+
 		return $Dom;
 	}
 
