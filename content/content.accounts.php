@@ -620,12 +620,12 @@
 			);
 			if(!isset($_SESSION['twitter_response'])) $_SESSION['twitter_response'] = array();
 
-			//session_write_close();
+			session_write_close();
 		}
 
 		private function _checkSession($var)
 		{
-			//session_start();
+			session_start();
 
 			if(array_key_exists($var, $_SESSION))
 			{

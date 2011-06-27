@@ -1,6 +1,5 @@
- 
+
 twitter account
 
-username: imacoda
-password: byspd10
-
+Consumer Key: fbfKLqdLxGRctPXLp22Wg
+Consumer Secret: FpgHyNMCaWkowK1ZBSKZBvHRCvGrjBCyge3iGxYrqU
